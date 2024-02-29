@@ -92,7 +92,7 @@ class StringFieldSchema implements FieldSchema<string, StringFieldProjections> {
     createProjections = (pb: ProjectionBuilder) : StringFieldProjections => ({
         toUpper: () => createProjectionsAccessor<StringFieldSchema, StringFieldProjections>(
             F.string(),
-            new ProjectionBuilder(`${pb}.toUpper()`))
+            new ProjectionBuilder(`upper(${pb})`))
     })
 }
 
@@ -158,6 +158,8 @@ export type Reference = {
 type ReferenceFieldProjections<TDocumentTypes extends DocumentSchema<any>[]> = ReturnType<ReferenceFieldSchema<TDocumentTypes>['createProjections']>;
 
 type ResolutionResult<TDocumentTypes extends DocumentSchema<any>[]> = ExtractValueTypeFromObjectSchemaUnion<TDocumentTypes[number]>;
+
+type TypeScpecificProjectionAccessors<TDocumentTypes extends DocumentSchema<any>[]> = { []}
 class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> implements FieldSchema<Reference, ReferenceFieldProjections<TDocumentTypes>> {
 
     __type: Reference | undefined;
@@ -172,7 +174,23 @@ class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> impleme
             return createProjectionsAccessor(
                 resultField,
                 new ProjectionBuilder(`${pb}->{...}`));
-        }
+        },
+
+        pick: <TProjections extends ((fields: FieldsAccessor<TDocumentTypes[number]["fields"]> & { employee: any, externalContributor : any }) => any)[]>(
+            ...projections: TProjections
+            ) : ReturnType<TProjections[number]> => {
+                
+                const fields = toObject(toArray(this.documentTypes).map(([k, v]) => [k, createProjectionsAccessor(v, new ProjectionBuilder(k))]));
+
+                for (const p of projections) {
+                    const result = p(fields);
+                }
+                const resultField = new TerminalObjectFieldSchema<ResolutionResult<TDocumentTypes>>()
+
+            return createProjectionsAccessor(
+                resultField,
+                new ProjectionBuilder(`{...${pb}}`));
+         }
     })
 }
 
