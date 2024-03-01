@@ -55,13 +55,15 @@ describe('Basic picks', () => {
 
     test('First query', () => {
         const q = from(Article);
-        
-        testType.equal<QueryResultType<typeof q>, { 
-            title: string, 
-            link: { url: string, label: string, target: 'BLANK' | 'SELF' } & { _type: 'link' }, 
-            category: { _ref: string, _type: 'reference' }, 
-            author: { _ref: string, _type: 'reference' 
-        } }>(true);
+
+        testType.equal<QueryResultType<typeof q>, {
+            title: string,
+            link: { url: string, label: string, target: 'BLANK' | 'SELF' } & { _type: 'link' },
+            category: { _ref: string, _type: 'reference' },
+            author: {
+                _ref: string, _type: 'reference'
+            }
+        }>(true);
 
         expect(q.toString()).toBe('*[_type == "article"] { "title": title, "link": link, "category": category, "author": author }')
     })
@@ -100,7 +102,7 @@ describe('Objects', () => {
         }));
         testType.equal<QueryResultType<typeof q>, { link: { url: string, label: string, target: 'BLANK' | 'SELF' } & { _type: 'link' } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "link": link }')
-    })    
+    })
 
     test('Pick single property', () => {
         const q = from(Article).pick(a => ({
@@ -108,18 +110,18 @@ describe('Objects', () => {
         }));
         testType.equal<QueryResultType<typeof q>, { linkUrl: string }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "linkUrl": link.url }')
-    })    
+    })
 
     test('Individual fields can be picked from objects', () => {
         const q = from(Article).pick(a => ({
-            link: a.link.pick(l => ({ 
+            link: a.link.pick(l => ({
                 _type: l._type,
                 url: l.url,
             })),
         }))
         testType.equal<QueryResultType<typeof q>, { link: { url: string, _type: 'link' } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "link": { "_type": link._type, "url": link.url } }')
-    })    
+    })
 
     test('Individual fields can be picked from objects', () => {
         const q = from(Article).pick(a => ({
@@ -127,7 +129,7 @@ describe('Objects', () => {
         }));
         testType.equal<QueryResultType<typeof q>, { link: { url: string } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "link": { "url": link.url } }')
-    })    
+    })
 
     test('Furhter projections can be applied to object fields', () => {
         const q = from(Article).pick(a => ({
@@ -135,8 +137,8 @@ describe('Objects', () => {
         }));
         testType.equal<QueryResultType<typeof q>, { link: { url: string } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "link": { "url": upper(link.url) } }')
-    })    
- })
+    })
+})
 
 describe('References', () => {
 
@@ -163,26 +165,24 @@ describe('References', () => {
         //testType.equal<QueryResultType<typeof q>, { author: { _type: 'author', name: string } | { _type: 'externalContributor', name: string, company: string } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "author": author->{...} }')
     })
-    
+
     test('References can be resolved to a union type', () => {
         const q = from(Article).pick(a => ({
             author: a.author.pick(
                 a => ({
                     name: a.name
                 }),
-                a => ({
-                    foo: "bar"
-                })
+
+                a => a.ofType(Employee, e => ({
+                    position: e.position
+                })),
+
+                a => a.ofType(ExternalContributor, e => ({
+                    company: e.company
+                }))
+            )
         }));
-        //testType.equal<QueryResultType<typeof q>, { author: { _type: 'author', name: string } | { _type: 'externalContributor', name: string, company: string } }>(true);
-        expect(q.toString()).toBe(`*[_type == "article"] { "author": author->{ _type == 'employee' => { "name": name }, _type == 'externalContributor' => { "name": name, "company": company }} }`)
-    })    
-})
-
-
-function foo<T extends (()=>any)[]>(...a: T) : ReturnType<T[number]> {
-
-}
-
-
-foo(() => "aaa", ()=>({}))
+        testType.equal<QueryResultType<typeof q>, { author: ({ name: string }) & ({ _type: 'employee', position: string } | { _type: 'externalContributor', company: string }) }>(true);
+        expect(q.toString()).toBe(`*[_type == "article"] { "author": author->{ "name": name, _type == 'employee' => { "position": position }, _type == 'externalContributor' => { "company": company }} }`)
+    })
+}) 

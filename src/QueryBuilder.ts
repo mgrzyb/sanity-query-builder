@@ -159,7 +159,8 @@ type ReferenceFieldProjections<TDocumentTypes extends DocumentSchema<any>[]> = R
 
 type ResolutionResult<TDocumentTypes extends DocumentSchema<any>[]> = ExtractValueTypeFromObjectSchemaUnion<TDocumentTypes[number]>;
 
-type TypeScpecificProjectionAccessors<TDocumentTypes extends DocumentSchema<any>[]> = { []}
+type PickReferenceResult<TDocumentTypes extends DocumentSchema<any>[], TProjections> = { []}
+type ConditionalProjectionResult<TDocumentType extends DocumentSchema<any>, TProjections> = { [K in keyof TProjections]: TProjections[K] extends ReferenceFieldProjections<TDocumentTypes> ? PickReferenceResult<TDocumentTypes, TProjections[K]> : TProjections[K}
 class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> implements FieldSchema<Reference, ReferenceFieldProjections<TDocumentTypes>> {
 
     __type: Reference | undefined;
@@ -176,9 +177,9 @@ class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> impleme
                 new ProjectionBuilder(`${pb}->{...}`));
         },
 
-        pick: <TProjections extends ((fields: FieldsAccessor<TDocumentTypes[number]["fields"]> & { employee: any, externalContributor : any }) => any)[]>(
+        pick: <TProjections extends ((fields: FieldsAccessor<TDocumentTypes[number]["fields"]> & { ofType: <T extends DocumentSchema<any>>(schema: T, projection: (fields: FieldsAccessor<T["fields"]>)=>{}) => {} }) => any)[]>(
             ...projections: TProjections
-            ) : ReturnType<TProjections[number]> => {
+            ) : PickReferenceResult<TDocumentTypes, TProjections> => {
                 
                 const fields = toObject(toArray(this.documentTypes).map(([k, v]) => [k, createProjectionsAccessor(v, new ProjectionBuilder(k))]));
 
