@@ -1,23 +1,17 @@
 import { testType } from "type-plus"
 import { from } from "../../src"
-import { Article } from "../TestSchema";
-import { ExpandRecursively, QueryResultType } from "../utils";
+import { Article } from "../test-schema/Article";
+import { QueryResultType } from "../utils";
+import { ExtractValueTypeFromFieldsSchema } from "../../src/schema/fields/ObjectFieldSchema";
 
 describe('Basic picks', () => {
 
     test('First query', () => {
         const q = from(Article);
 
-        testType.equal<QueryResultType<typeof q>, {
-            title: string,
-            link: { url: string, label: string, target: 'BLANK' | 'SELF' } & { _type: 'link' },
-            category: { _ref: string, _type: 'reference' },
-            author: {
-                _ref: string, _type: 'reference'
-            }
-        }>(true);
+        testType.equal<QueryResultType<typeof q>, ExtractValueTypeFromFieldsSchema<typeof Article["fields"]>>(true);
 
-        expect(q.toString()).toBe('*[_type == "article"] { "title": title, "link": link, "category": category, "author": author }')
+        expect(q.toString()).toBe('*[_type == "article"] { "title": title, "link": link, "category": category, "author": author, "body": body, "relatedArticles": relatedArticles }')
     })
 
     test('Field can be picked with an alias', () => {

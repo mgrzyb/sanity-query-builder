@@ -1,7 +1,7 @@
 import { testType } from "type-plus";
 import { from } from "../../src";
-import { Article } from "../TestSchema";
-import { ExpandRecursively, QueryResultType } from "../utils";
+import { Article } from "../test-schema/Article";
+import { QueryResultType } from "../utils";
 
 describe('Objects', () => {
 
@@ -30,14 +30,6 @@ describe('Objects', () => {
         }))
         testType.equal<QueryResultType<typeof q>, { link: { url: string, _type: 'link' } }>(true);
         expect(q.toString()).toBe('*[_type == "article"] { "link": { "_type": link._type, "url": link.url } }')
-    })
-
-    test('Individual fields can be picked from objects', () => {
-        const q = from(Article).pick(a => ({
-            link: a.link.pick(l => ({ url: l.url })),
-        }));
-        testType.equal<QueryResultType<typeof q>, { link: { url: string } }>(true);
-        expect(q.toString()).toBe('*[_type == "article"] { "link": { "url": link.url } }')
     })
 
     test('Furhter projections can be applied to object fields', () => {

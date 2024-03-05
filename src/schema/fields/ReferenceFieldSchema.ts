@@ -10,28 +10,29 @@ export type Reference = {
     _type: 'reference';
 };
 
-export type ReferenceFieldProjections<TDocumentTypes extends DocumentSchema<any>[]> = ReturnType<ReferenceFieldSchema<TDocumentTypes>['createProjections']>;
+export type ReferenceFieldProjections<TDocumentTypes extends DocumentSchema<any>> = ReturnType<ReferenceFieldSchema<TDocumentTypes>['createProjections']>;
 
-export type ResolutionResult<TDocumentTypes extends DocumentSchema<any>[]> = ExtractValueTypeFromObjectSchemaUnion<TDocumentTypes[number]>;
+export type ResolutionResult<TDocumentTypes extends DocumentSchema<any>> = ExtractValueTypeFromObjectSchemaUnion<TDocumentTypes>;
 
-type Foo<T extends Record<string, ProjectionsAccessor<any, any>>> = ProjectionsAccessor<
-    TerminalObjectFieldSchema<
-        (T extends ConditionalProjectionResult<infer TDocumentType, infer TProjectionResult> ?
-            never :
-            ExtractValueTypeFromFieldsSchema<ProjectionResultSchema<T>>) &
-        (T extends ConditionalProjectionResult<infer TDocumentType, infer TProjectionResult> ?
-            { _type: TDocumentType["_type"] } & ExtractValueTypeFromFieldsSchema<ProjectionResultSchema<TProjectionResult>> :
-            any)>, {}>;
+type ValueTypeFromProjectionResult<T extends Record<string, ProjectionsAccessor<any, any>>> = 
+    (T extends ConditionalProjectionResult<infer TDocumentType, infer TProjectionResult> ? never : ExtractValueTypeFromFieldsSchema<ProjectionResultSchema<T>>) & 
+    (T extends ConditionalProjectionResult<infer TDocumentType, infer TProjectionResult> ? { _type: TDocumentType["_type"]; } & ExtractValueTypeFromFieldsSchema<ProjectionResultSchema<TProjectionResult>> : {});
 
-export type PickReferenceResult<TProjections extends (f: any) => any> = Foo<ReturnType<TProjections>>;
+type ProjectionAccessorFromProjectionResults<T extends Record<string, ProjectionsAccessor<any, any>>> = ProjectionsAccessor<TerminalObjectFieldSchema<ValueTypeFromProjectionResult<T>>, {}>;
 
-export type ConditionalProjectionResult<TDocumentType extends DocumentSchema<any>, TProjections extends Record<string, ProjectionsAccessor<any, any>>> = TProjections & { __type: TDocumentType };
+export type PickReferenceResult<TProjections extends (f: any) => any> = ProjectionAccessorFromProjectionResults<ReturnType<TProjections>>;
 
-export class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> implements FieldSchema<Reference, ReferenceFieldProjections<TDocumentTypes>> {
+export type ConditionalProjectionResult<TDocumentType extends DocumentSchema<any>, TProjectionResult extends Record<string, ProjectionsAccessor<any, any>>> = TProjectionResult & { __type: TDocumentType } & ProjectionAccessorFromProjectionResults<TProjectionResult>;
+
+type OfTypeFunction<TDocumentTypes extends DocumentSchema<any>> = {
+    ofType: <T extends TDocumentTypes, K extends Record<string, ProjectionsAccessor<any, any>>>(schema: T, projection: (fields: FieldsAccessor<T["fields"]>) => K) => ConditionalProjectionResult<T, K>;
+};
+
+export class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>> implements FieldSchema<Reference, ReferenceFieldProjections<TDocumentTypes>> {
 
     __type: Reference | undefined;
 
-    constructor(readonly documentTypes: TDocumentTypes) { }
+    constructor(readonly documentTypes: TDocumentTypes[]) { }
 
     createProjections = (pb: ProjectionBuilder) => ({
         resolve: () => {
@@ -42,24 +43,44 @@ export class ReferenceFieldSchema<TDocumentTypes extends DocumentSchema<any>[]> 
                 new ProjectionBuilder(`${pb}->{...}`));
         },
 
-        pick: <TProjections extends ((fields: FieldsAccessor<TDocumentTypes[number]["fields"]> &
-        {
-            ofType: <T extends DocumentSchema<any>, K extends Record<string, ProjectionsAccessor<any, any>>>(schema: T, projection: (fields: FieldsAccessor<T["fields"]>) => K) => ConditionalProjectionResult<T, K>;
-        }) => any)[]>(
-            ...projections: TProjections
-        ): PickReferenceResult<TProjections[number]> => {
+        pick: <TProjections extends ((fields: FieldsAccessor<TDocumentTypes["fields"]> & OfTypeFunction<TDocumentTypes>) => any)[]>(...projections: TProjections): PickReferenceResult<TProjections[number]> => {
 
-            throw new Error('Not implemented');
-            // const fields = toObject(toArray(this.documentTypes).map(([k, v]) => [k, createProjectionsAccessor(v, new ProjectionBuilder(k))]));
+            const fields = toObject(this.documentTypes.flatMap(d => toArray(d.fields)).map(([k, v]) => [k, createProjectionsAccessor(v, new ProjectionBuilder(k))]));
+            fields.ofType = (schema : DocumentSchema<any>, projection: (f:any)=>any) => { 
+                const f = toObject(toArray(schema.fields).map(([k, v]) => [k, createProjectionsAccessor(v, new ProjectionBuilder(k))]));
+                const r = projection(f);
+                return { ...r, __type:schema, toString: () => `_type == '${schema._type}' => { ${toArray(r).map(([k, v]) => `"${k}": ${v}`).join(', ')} }` }
+            }
 
-            // for (const p of projections) {
-            //     const result = p(fields);
-            // }
-            // const resultField = new TerminalObjectFieldSchema<ResolutionResult<TDocumentTypes>>();
+            let commonResult = {} as any;
+            let typedResults = {} as any;
 
-            // return createProjectionsAccessor(
-            //     resultField,
-            //     new ProjectionBuilder(`{...${pb}}`));
+            for (const p of projections) {
+                const result = p(fields as any);
+                const { __type, ...rest } = result;
+                if (__type) {
+                    typedResults[result.__type._type] = rest;
+                } else {
+                    commonResult = {...commonResult, ...rest };
+                }
+            }
+            
+            const resultField = new TerminalObjectFieldSchema<ValueTypeFromProjectionResult<ReturnType<TProjections[number]>>>();
+
+            const typedResultsArray = toArray(typedResults);
+            const a = []
+            
+            if (typedResultsArray.length > 0) a.push(`_type`);
+            
+            a.push(toArray(commonResult).map(([k, v]) => `"${k}": ${v}`).join(', '))
+
+            if (typedResultsArray.length > 0)
+                a.push(typedResultsArray.map(([k, v]) => v).join(', '));            
+
+            return createProjectionsAccessor(
+                resultField,
+                new ProjectionBuilder(`${pb}->{ ${a.join(', ')} }`));
         }
     });
 }
+
