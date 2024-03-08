@@ -1,7 +1,16 @@
+interface Field<T extends GroqExpression<any>> {
+}
+
+interface ObjectSchema<TType extends string, TFields extends Record<string, Field<any>> {
+    type: TType
+    fields: TFields
+}
+
 interface GroqExpression<TReturnType> {
     toGroq(): string
 }
 
+type ExpressionFromField<T extends Field<any>> = T extends Field<infer TExpression> ? TExpression : never
 type AnyGroqObject = Record<string, GroqExpression<any>>
 type AnyTypedGroqObject<TType extends string> = { _type: TType } & AnyGroqObject;
 
@@ -19,17 +28,21 @@ class FieldAccessExpression<T> implements GroqExpression<T> {
     }
 }
 
+interface ObjectExpression<TObjects extends AnyTypedGroqObject<any>> extends GroqExpression<GroqObjectUnionType<TObjects>> {
+    is<T extends TObjects>(type: T, projection: (e: T) => any): GroqExpression<any>
+} 
 
 
-type ArrayElementProjection<TElementsUnion extends AnyTypedGroqObject<any>> = (e: TElementsUnion) => any
+type ArrayElementProjection<TElementsUnion extends AnyTypedGroqObject<any>> = (e: ObjectExpression<TElementsUnion> & TElementsUnion) => any
 
-type ArrayElementProjectionsResultType<TProjections extends ArrayElementProjection<any>[]> = GroqExpressionType<ReturnType<TProjections[number]>>
+type ArrayElementProjectionResultType<TProjection extends ArrayElementProjection<any>> = 
+    GroqExpressionType<ReturnType<TProjection>>
 
 interface ObjectArrayExpression<TElementsUnion extends AnyTypedGroqObject<any>> extends GroqExpression<readonly (GroqObjectUnionType<TElementsUnion>)[]> {
-    map<TProjections extends ArrayElementProjection<TElementsUnion>[]>(...projections: TProjections): GroqExpression<ArrayElementProjectionsResultType<TProjections>>;
+    map<TProjection extends ArrayElementProjection<TElementsUnion>>(projection: TProjection): GroqExpression<ArrayElementProjectionResultType<TProjection>>;
 }
 
-function query<TType extends string, TSource extends AnyTypedGroqObject<TType>(o : TSource) : ObjectArrayExpression<TObject>{
+function query<TType extends string, TFields extends Record<string, Field<any>>, TSource extends ObjectSchema<TType, TFields>>(o : TSource) : ObjectArrayExpression<{ [K in keyof TSource["fields"]]: ExpressionFromField<TFields[K]> } & { _type: TType }>{
     throw Error("Not implemented");
 }
 
@@ -40,12 +53,23 @@ function union(...args: any[]) : any{
 
 
 const Article = {
-    title: new FieldAccessExpression()
+    type: "article" as const,
+    fields: {
+        title: {} as Field<GroqExpression<string>>,
+        linkUrl: {} as Field<GroqExpression<string>>,
+        linkLabel: {} as Field<GroqExpression<string>>,
+        author: {} as Field<ObjectExpression<{ _type: 'person', name: GroqExpression<string> }>>
+    }
 }
 
+const Employee = {
+    type: "person" as const,
+    fields: {
+        name: {} as Field<GroqExpression<string>>,
+        email: {} as Field<GroqExpression<string>>,
+    }
 
-query(Article)
-
+}
 
 query(Article).map(a => ({
         link: {
