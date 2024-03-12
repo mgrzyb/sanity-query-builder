@@ -1,6 +1,4 @@
-import { F, fetch } from "../poc"
-import { ObjectAccessExpression, ReferenceAccessExpression } from "../poc/GroqExpression"
-import { GroqObjectFromSchema } from "../poc/ObjectSchema"
+import { F } from "../poc"
 import { query } from "../poc/QueryExpression"
 import { union } from "../poc/UnionExpression"
 
@@ -94,7 +92,7 @@ describe('Foo bar', () => {
 
     test('Foo', () => {
         const groq = q.toGroq();
-        const [r] = fetch(q);
+        console.log(groq);
     })
 });
 

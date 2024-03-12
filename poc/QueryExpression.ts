@@ -1,6 +1,6 @@
 import { ObjectArrayAccessExpression, ArrayElementProjection, GroqExpression, ArrayElementProjectionResultType, GroqObjectType, AnyTypedGroqObject, ObjectAccessExpression } from "./GroqExpression";
 import { ObjectSchema, GroqObjectFromSchema } from "./ObjectSchema";
-import { toArray, toGroqObject, toObject } from "./utils";
+import { toArray, toGroq, toGroqObject, toObject } from "./utils";
 
 export function query<TSource extends ObjectSchema<any, any>>(o: TSource): ObjectArrayAccessExpression<GroqObjectFromSchema<TSource>> {
     return new QueryExpression<GroqObjectFromSchema<TSource>>(o)
@@ -23,8 +23,8 @@ class QueryExpression<T extends AnyTypedGroqObject<any>> implements ObjectArrayA
 
 class MappedQueryExpression<T> implements GroqExpression<readonly T[]> {
     __returnType: readonly T[] | undefined;
-    constructor(private readonly queryExpression : GroqExpression<any>, private readonly projection: any) { }
+    constructor(private readonly queryExpression : GroqExpression<any>, private readonly projectionResult: any) { }
     toGroq(d: number = 0): string {
-        return `${this.queryExpression.toGroq(d+1)}{${toArray(this.projection).map(([k, v]) => `${k}: ${v.toGroq(d+1)}`).join(', ')}}`
+        return `${this.queryExpression.toGroq(d+1)} ${toGroq(this.projectionResult)}`
     }
 }
