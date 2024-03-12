@@ -1,24 +1,26 @@
 import { Field, FieldBase } from "./Field";
 import { ObjectArrayAccessExpression, AnyTypedGroqObject, GroqExpression, ArrayElementProjection, ArrayElementProjectionResultType, GroqObjectType, ObjectAccessExpression } from "./GroqExpression";
 import { ObjectSchema, GroqObjectFromSchema } from "./ObjectSchema";
-import { toArray } from "./utils";
+import { toArray, toGroqObject } from "./utils";
 
 export class ObjectArrayField<TElementSchemaUnion extends ObjectSchema<any, any>> extends FieldBase<ObjectArrayAccessExpression<GroqObjectFromSchema<TElementSchemaUnion>>> {
     constructor(private readonly elementSchemas: TElementSchemaUnion[]) { super() }
 
-    getExpression(name: string) {
-        return new ObjectArrayFieldAccessExpression<GroqObjectFromSchema<TElementSchemaUnion>>(name);
+    getExpression(name: string, objectAccessExpression?: ObjectAccessExpression<any>) {
+        return new ObjectArrayFieldAccessExpression<GroqObjectFromSchema<TElementSchemaUnion>>(name, this.elementSchemas.map(s => toGroqObject(s)), objectAccessExpression);
     }
 }
 
 class ObjectArrayFieldAccessExpression<TElementsUnion extends AnyTypedGroqObject<any>> implements ObjectArrayAccessExpression<TElementsUnion> {
     __objectArrayAccess: true| undefined;
     __returnType: readonly GroqObjectType<TElementsUnion>[]| undefined;
-    constructor(private readonly fieldName : string, ...elements: TElementsUnion[]) { }
+    constructor(private readonly fieldName : string, private readonly elements: TElementsUnion[], private readonly objectAccessExpression?: GroqExpression<any>) { }
     map<TProjection extends ArrayElementProjection<TElementsUnion>>(projection: TProjection): GroqExpression<readonly ArrayElementProjectionResultType<TProjection>[]> {
         return new MappedArrayExpression<ArrayElementProjectionResultType<TProjection>>(this, projection);
     }
-    toGroq(): string {
+    toGroq(d: number) {
+        if (this.objectAccessExpression)
+            return `${this.objectAccessExpression.toGroq(d+1)}.${this.fieldName}`
         return this.fieldName
     }
 }

@@ -12,7 +12,7 @@ export interface Field<T extends GroqExpression<any>> {
 export abstract class FieldBase<TExpression extends GroqExpression<any>> implements Field<TExpression> {
     [__exporessionType]: TExpression | undefined;
 
-    abstract getExpression(fieldName: string): TExpression;
+    abstract getExpression(fieldName: string, objectAccessExpression?: GroqExpression<any>): TExpression;
 }
 
 type ExpandObjectAccessExpressions<TExpression> = TExpression extends ObjectAccessExpression<infer TO> ? TExpression & { [K in keyof TO]: ExpandObjectAccessExpressions<TO[K]> } : TExpression;
