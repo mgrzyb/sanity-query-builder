@@ -6,8 +6,10 @@ export interface ObjectSchema<TType extends string, TFields extends Record<strin
     fields: TFields;
 }
 
-export type GroqObjectFromSchema<TSource extends ObjectSchema<any, any>> = {
+export type GroqObjectFromObjectSchema<TSource extends ObjectSchema<any, any>> = 
+TSource extends ObjectSchema<any, any> ? {
     [K in keyof TSource["fields"]]: ExpressionFromField<TSource["fields"][K]>;
 } & {
     _type: GroqExpression<TSource["type"]>;
-};
+} : never;
+

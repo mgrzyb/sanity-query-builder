@@ -1,9 +1,9 @@
-import { ObjectArrayAccessExpression, ArrayElementProjection, GroqExpression, ArrayElementProjectionResultType, GroqObjectType, AnyTypedGroqObject, ObjectAccessExpression } from "./GroqExpression";
-import { ObjectSchema, GroqObjectFromSchema } from "./ObjectSchema";
+import { ObjectArrayAccessExpression, ArrayElementProjection, GroqExpression, ArrayElementProjectionResultType, GroqObjectType, AnyTypedGroqObject, GroqExpressionContext } from "./GroqExpression";
+import { GroqObjectFromObjectSchema, ObjectSchema } from "./ObjectSchema";
 import { toArray, toGroq, toGroqObject, toObject } from "./utils";
 
-export function query<TSource extends ObjectSchema<any, any>>(o: TSource): ObjectArrayAccessExpression<GroqObjectFromSchema<TSource>> {
-    return new QueryExpression<GroqObjectFromSchema<TSource>>(o)
+export function query<TSource extends ObjectSchema<any, any>>(o: TSource): ObjectArrayAccessExpression<GroqObjectFromObjectSchema<TSource>> {
+    return new QueryExpression<GroqObjectFromObjectSchema<TSource>>(o)
 }
 
 class QueryExpression<T extends AnyTypedGroqObject<any>> implements ObjectArrayAccessExpression<T> {
@@ -16,7 +16,9 @@ class QueryExpression<T extends AnyTypedGroqObject<any>> implements ObjectArrayA
         const projectionResult = projection(projectionArg);
         return new MappedQueryExpression<ArrayElementProjectionResultType<TProjection>>(this, projectionResult);
     }
-    toGroq(): string {
+    toGroq(depth: number = 0, context?: GroqExpressionContext): string {
+        if (depth === 0)
+            return `*[_type == "${this.schema.type}"] { ... }`
         return `*[_type == "${this.schema.type}"]`
     }
 }
@@ -24,7 +26,7 @@ class QueryExpression<T extends AnyTypedGroqObject<any>> implements ObjectArrayA
 class MappedQueryExpression<T> implements GroqExpression<readonly T[]> {
     __returnType: readonly T[] | undefined;
     constructor(private readonly queryExpression : GroqExpression<any>, private readonly projectionResult: any) { }
-    toGroq(d: number = 0): string {
-        return `${this.queryExpression.toGroq(d+1)} ${toGroq(this.projectionResult)}`
+    toGroq(depth: number = 0, context?: GroqExpressionContext): string {
+        return `${this.queryExpression.toGroq(depth + 1)} ${toGroq(this.projectionResult, 'array-map')}`
     }
 }

@@ -1,4 +1,4 @@
-import { GroqExpression, ObjectAccessExpression, ReferenceAccessExpression } from "./GroqExpression";
+import { GroqExpression, GroqExpressionContext, ObjectAccessExpression } from "./GroqExpression";
 
 const __exporessionType = Symbol("type");
 
@@ -15,6 +15,18 @@ export abstract class FieldBase<TExpression extends GroqExpression<any>> impleme
     abstract getExpression(fieldName: string, objectAccessExpression?: GroqExpression<any>): TExpression;
 }
 
-type ExpandObjectAccessExpressions<TExpression> = TExpression extends ObjectAccessExpression<infer TO> ? TExpression & { [K in keyof TO]: ExpandObjectAccessExpressions<TO[K]> } : TExpression;
+export abstract class FieldAccessExpression {
+    constructor(private readonly fieldName: string, private readonly objectAccessExpression?: GroqExpression<any>) { }
+
+    toGroq(depth: number = 0, context?: GroqExpressionContext) {
+        if (this.objectAccessExpression)
+            return `${this.objectAccessExpression.toGroq(depth + 1)}.${this.fieldName}`
+        if (context == 'array-map')
+            return `.${this.fieldName}`;
+        return this.fieldName;
+    }
+}
+
+export type ExpandObjectAccessExpressions<TExpression> = TExpression extends ObjectAccessExpression<infer TO> ? TExpression & { [K in keyof TO]: ExpandObjectAccessExpressions<TO[K]> } : TExpression;
 
 export type ExpressionFromField<T extends Field<any>> = T extends Field<infer TExpression> ? ExpandObjectAccessExpressions<TExpression> : never

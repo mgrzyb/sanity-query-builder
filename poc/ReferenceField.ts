@@ -1,28 +1,25 @@
-import { ExpressionFromField, FieldBase } from "./Field";
-import { ReferenceAccessExpression, ResolvedReferenceProjection, GroqExpression, GroqExpressionType, GroqObjectType, AnyTypedGroqObject, ObjectUnionAccessExpression, GroqExpressionOrObject, ConditionalExpression } from "./GroqExpression";
-import { ObjectSchema, GroqObjectFromSchema } from "./ObjectSchema";
+import { ExpressionFromField, FieldAccessExpression, FieldBase } from "./Field";
+import { ReferenceAccessExpression, ResolvedReferenceProjection, GroqExpression, GroqExpressionType, GroqObjectType, AnyTypedGroqObject, ObjectUnionAccessExpression, GroqExpressionOrObject, ConditionalExpression, Ref, GroqExpressionContext } from "./GroqExpression";
+import { ObjectSchema, GroqObjectFromObjectSchema } from "./ObjectSchema";
 import { toArray, toGroq, toGroqObject } from "./utils";
 
-export class ReferenceField<TObjectsSchemaUnion extends ObjectSchema<any, any>> extends FieldBase<ReferenceAccessExpression<GroqObjectFromSchema<TObjectsSchemaUnion>>> {
+export class ReferenceField<TObjectsSchemaUnion extends ObjectSchema<any, any>> extends FieldBase<ReferenceAccessExpression<GroqObjectFromObjectSchema<TObjectsSchemaUnion>>> {
     constructor(private readonly schemas: TObjectsSchemaUnion[]) { super() }
     getExpression(name: string, objectAccessExpression?: GroqExpression<any>) {
         return new ReferenceFieldAccessExpression<TObjectsSchemaUnion>(name, this.schemas, objectAccessExpression);
     }
 }
 
-class ReferenceFieldAccessExpression<TObjectSchamasUnion extends ObjectSchema<any, any>> implements ReferenceAccessExpression<GroqObjectFromSchema<TObjectSchamasUnion>> {
+class ReferenceFieldAccessExpression<TObjectSchamasUnion extends ObjectSchema<any, any>> extends FieldAccessExpression implements ReferenceAccessExpression<GroqObjectFromObjectSchema<TObjectSchamasUnion>> {
     __referenceAccess: true| undefined;
-    __returnType: GroqObjectType<GroqObjectFromSchema<TObjectSchamasUnion>>| undefined;
-    constructor(private readonly fieldName: string, private readonly schemas: TObjectSchamasUnion[], private readonly objectAccessExpression?: GroqExpression<any>) { }
-    resolve<TProjection extends ResolvedReferenceProjection<GroqObjectFromSchema<TObjectSchamasUnion>>>(projection: TProjection): GroqExpression<GroqExpressionType<ReturnType<TProjection>>> {
-        const arg = new ProjectionAgr<GroqObjectFromSchema<TObjectSchamasUnion>>(this.schemas.map(s => toGroqObject(s)));
+    __returnType: Ref | undefined;
+    constructor(fieldName: string, private readonly schemas: TObjectSchamasUnion[], objectAccessExpression?: GroqExpression<any>) {
+        super(fieldName, objectAccessExpression);
+     }
+    resolve<TProjection extends ResolvedReferenceProjection<GroqObjectFromObjectSchema<TObjectSchamasUnion>>>(projection: TProjection): GroqExpression<GroqExpressionType<ReturnType<TProjection>>> {
+        const arg = new ProjectionAgr<GroqObjectFromObjectSchema<TObjectSchamasUnion>>(this.schemas.map(s => toGroqObject(s)));
         const projectionResult = projection(arg as any);
         return new ResolvedReferenceExpression<GroqExpressionType<ReturnType<TProjection>>>(this, projectionResult);
-    }
-    toGroq(d: number) {
-        if (this.objectAccessExpression)
-            return `${this.objectAccessExpression.toGroq(d+1)}.${this.fieldName}`
-        return this.fieldName
     }
 }
 
@@ -42,7 +39,7 @@ class ProjectionAgr<TObjectsUnion extends AnyTypedGroqObject<any>> implements Ob
         return new IsTypeExpression(this, type, projectionResult)
     }
     __returnType: GroqObjectType<TObjectsUnion> | undefined;
-    toGroq(d?: number | undefined): string {
+    toGroq(depth?: number, context?: GroqExpressionContext): string {
         return "{...}"
     }
     
@@ -52,7 +49,7 @@ class IsTypeExpression<T extends ObjectSchema<any, any>, TProjection extends (e:
     _conditionalAccess: true | undefined;
     __returnType: (GroqExpressionType<ReturnType<TProjection>> & { _type: T["type"]; }) | undefined;
     constructor(private readonly elements: ObjectUnionAccessExpression<any>, private readonly type: T, private readonly projectionResult: GroqExpressionOrObject) { }
-    toGroq(d?: number | undefined): string {
+    toGroq(depth?: number, context?: GroqExpressionContext): string {
         return `_type == '${this.type.type}' => ${toGroq(this.projectionResult)}`
     }
 }
@@ -60,7 +57,7 @@ class IsTypeExpression<T extends ObjectSchema<any, any>, TProjection extends (e:
 class ResolvedReferenceExpression<T> implements GroqExpression<T> {
     __returnType: T | undefined;
     constructor(private readonly queryExpression : GroqExpression<any>, private readonly projectionResult: any) { }
-    toGroq(d: number = 0): string {
-        return `${this.queryExpression.toGroq(d+1)}->${toGroq(this.projectionResult)}`
+    toGroq(depth: number = 0, context?: GroqExpressionContext): string {
+        return `${this.queryExpression.toGroq(depth + 1)}->${toGroq(this.projectionResult)}`
     }
 }

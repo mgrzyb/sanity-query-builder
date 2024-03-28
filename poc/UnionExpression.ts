@@ -1,4 +1,4 @@
-import { GroqExpressionOrObject, ConditionalExpression, GroqExpressionType, GroqExpression } from "./GroqExpression";
+import { GroqExpressionOrObject, ConditionalExpression, GroqExpressionType, GroqExpression, GroqExpressionContext } from "./GroqExpression";
 import { toArray, toGroq } from "./utils";
 
 type UnionToSum<T> = (T extends any ? (k: T) => void : never) extends ((k: infer I) => void) ? I : never
@@ -18,14 +18,7 @@ class UnionExpression<TArgs extends GroqExpressionOrObject[]> implements GroqExp
     constructor(private readonly args: TArgs) {
     }
 
-    toGroq(d?: number): string {
-        return `{${this.args.map(a => toGroq(a)).join(", ")}}`;
-
-        function toGroq(a: GroqExpressionOrObject): any {
-            if (typeof a === 'string') return a;
-            if (typeof a === 'number') return a;
-            if ((a as any).toGroq) return (a as any).toGroq();
-            return toArray(a).map(([k, v]) => `"${k}": ${toGroq(v as any)}`).join(", ");
-        }
+    toGroq(depth?: number, context?: GroqExpressionContext): string {
+        return `{_type, ${this.args.map(a => toGroq(a, 'union')).join(", ")}}`;
     }
 }
