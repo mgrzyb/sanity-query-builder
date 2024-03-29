@@ -1,6 +1,7 @@
 import { ExpressionFromField, FieldAccessExpression, FieldBase } from "./Field";
 import { ReferenceAccessExpression, ResolvedReferenceProjection, GroqExpression, GroqExpressionType, GroqObjectType, AnyTypedGroqObject, ObjectUnionAccessExpression, GroqExpressionOrObject, ConditionalExpression, Ref, GroqExpressionContext } from "./GroqExpression";
 import { ObjectSchema, GroqObjectFromObjectSchema } from "./ObjectSchema";
+import { SimpleFieldAccessExpression } from "./SimpleField";
 import { toArray, toGroq, toGroqObject } from "./utils";
 
 export class ReferenceField<TObjectsSchemaUnion extends ObjectSchema<any, any>> extends FieldBase<ReferenceAccessExpression<GroqObjectFromObjectSchema<TObjectsSchemaUnion>>> {
@@ -27,6 +28,7 @@ class ProjectionAgr<TObjectsUnion extends AnyTypedGroqObject<any>> implements Ob
     __objectUnionAccess: true | undefined;
     constructor(private readonly elements: TObjectsUnion[]) { 
         // TODO: extract common fields from elements
+        (this as any)["_type"] = new SimpleFieldAccessExpression<string>('_type');
         for (const e of elements) {
             for (const [k, v] of toArray(e)) {
                 (this as any)[k] = v

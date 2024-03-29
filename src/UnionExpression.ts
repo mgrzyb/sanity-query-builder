@@ -8,7 +8,7 @@ type UnionResultType<T extends GroqExpressionOrObject> =
     UnionToSum<(T extends ConditionalExpression<any> ? { } : GroqExpressionType<T>)> & 
     IsNever<T extends ConditionalExpression<any> ? GroqExpressionType<T> : never, {}>
 
-export function union<TArgs extends GroqExpressionOrObject[]>(...args: TArgs): GroqExpression<UnionResultType<TArgs[number]>> {
+export function union<TArgs extends (GroqExpression<object> | Record<string, GroqExpressionOrObject>)[]>(...args: TArgs): GroqExpression<UnionResultType<TArgs[number]>> {
     return new UnionExpression(args);
 }
 

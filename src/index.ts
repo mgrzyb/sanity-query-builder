@@ -1,17 +1,20 @@
-import { QueryBuilder } from "./QueryBuilder";
-import { DocumentSchema } from "./schema/DocumentSchema";
-import { FieldsAccessor, ProjectionBuilder } from "./schema/FieldSchema";
-import { createProjectionsAccessor } from "./schema/utils";
-import { toArray, toObject } from "./utils";
+import { GroqExpression } from "./GroqExpression";
+import { ObjectArrayField } from "./ObjectArrayField";
+import { ObjectField } from "./ObjectField";
+import { ObjectSchema } from "./ObjectSchema";
+import { ReferenceField } from "./ReferenceField";
+import { SimpleField } from "./SimpleField";
 
-export * from './schema';
-
-export function from<T extends DocumentSchema<any>>(schema: T) {
-    const fieldAccessors = toObject<FieldsAccessor<T["fields"]>>(
-        toArray(schema.fields).map(([k, v]) => {
-            const pb = new ProjectionBuilder(k);
-            return [k, createProjectionsAccessor(v, pb)];
-        }));
-
-    return new QueryBuilder<T['fields']>(schema, fieldAccessors);
+export function fetch<T>(q : GroqExpression<T>) : T {
+    throw Error("Not implemented");    
 }
+
+export const F = {
+    string: () => new SimpleField<string>(),
+    object: <T extends ObjectSchema<any, any>>(type: T) => new ObjectField<T>(type),
+    reference: <T extends ObjectSchema<any, any>[]>(elements: T) => new ReferenceField<T[number]>(elements),
+    objectArray: <TElements extends (ObjectSchema<any, any> | (()=>ObjectSchema<any, any>))[], TReferences extends (ObjectSchema<any, any> | (()=>ObjectSchema<any, any>))[] = never[]>(elements: TElements, references?: TReferences) => new ObjectArrayField<TElements[number], TReferences[number]>(elements, references??[]),
+    referenceArray: <TReferences extends (ObjectSchema<any, any> | (()=>ObjectSchema<any, any>))[]>(references: TReferences) => F.objectArray<never[], TReferences>([], references)
+}
+
+

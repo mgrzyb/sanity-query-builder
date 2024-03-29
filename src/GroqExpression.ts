@@ -39,11 +39,13 @@ export interface ReferenceAccessExpression<TObjectsUnion extends AnyTypedGroqObj
 }
 
 export type ArrayElementProjection<TElementsUnion extends AnyTypedGroqObject<any>> = (e: ObjectUnionAccessExpression<TElementsUnion> & TElementsUnion) => any
+export type ArrayElementPredicate<TElementsUnion extends AnyTypedGroqObject<any>> = (e: ObjectUnionAccessExpression<TElementsUnion> & TElementsUnion) => GroqExpression<boolean>
 export type ArrayElementProjectionResultType<TProjection extends ArrayElementProjection<any>> = GroqExpressionType<ReturnType<TProjection>>
 
 export interface ObjectArrayAccessExpression<TElementsUnion extends AnyTypedGroqObject<any>> extends GroqExpression<readonly (GroqObjectType<TElementsUnion>)[]> {
     __objectArrayAccess: true | undefined;
     map<TProjection extends ArrayElementProjection<TElementsUnion>>(projection: TProjection): GroqExpression<readonly ArrayElementProjectionResultType<TProjection>[]>;
+    filter(predicate: ArrayElementPredicate<TElementsUnion>): ObjectArrayAccessExpression<TElementsUnion>;
 }
 
 export type AnyGroqObject = Record<string, GroqExpression<any>>
@@ -53,6 +55,6 @@ export interface ReferenceObject<TReferencedObjects extends AnyTypedGroqObject<a
     _ref: GroqExpression<string>;
 }
 
-export type GroqExpressionOrObject = GroqExpression<any> | Record<string, any> | string | number
+export type GroqExpressionOrObject = GroqExpression<any> | Record<string, any> | string | number | boolean
 export type GroqExpressionType<T extends GroqExpressionOrObject> = T extends GroqExpression<infer T> ? T : T extends Record<string, any> ? GroqObjectType<T> : T;
 export type GroqObjectType<T extends Record<string, any>> = T extends Record<string, any> ? { [K in keyof T]: GroqExpressionType<T[K]> } : never

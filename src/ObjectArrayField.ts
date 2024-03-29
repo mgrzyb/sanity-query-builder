@@ -1,5 +1,5 @@
 import { ExpressionFromField, FieldAccessExpression, FieldBase } from "./Field";
-import { ObjectArrayAccessExpression, GroqExpression, ArrayElementProjection, ArrayElementProjectionResultType, GroqObjectType, ObjectAccessExpression, ObjectUnionAccessExpression, ConditionalExpression, GroqExpressionType, GroqExpressionOrObject, GroqExpressionContext, IsExpressionType } from "./GroqExpression";
+import { ObjectArrayAccessExpression, GroqExpression, ArrayElementProjection, ArrayElementProjectionResultType, GroqObjectType, ObjectAccessExpression, ObjectUnionAccessExpression, ConditionalExpression, GroqExpressionType, GroqExpressionOrObject, GroqExpressionContext, IsExpressionType, ArrayElementPredicate } from "./GroqExpression";
 import { GroqObjectFromObjectSchema, ObjectSchema } from "./ObjectSchema";
 import { SimpleFieldAccessExpression } from "./SimpleField";
 import { isGroqExpression, toArray, toGroq, toGroqObject } from "./utils";
@@ -21,18 +21,21 @@ type Bar<TElementSchemas extends ObjectSchema<any, any>, TReferenceSchemas exten
 class ObjectArrayFieldAccessExpression<TElementSchemas extends ObjectSchema<any, any>, TReferenceSchemas extends ObjectSchema<any, any>> extends FieldAccessExpression implements ObjectArrayAccessExpression<Bar<TElementSchemas, TReferenceSchemas>> {
     __objectArrayAccess: true| undefined;
     __returnType: readonly GroqObjectType<Bar<TElementSchemas, TReferenceSchemas>>[] | undefined;
+    isProjection?: boolean | undefined;
 
     constructor(fieldName : string, private readonly elementSchemas:TElementSchemas[], private readonly referenceSchemas: TReferenceSchemas[], objectAccessExpression?: GroqExpression<any>) { 
         super(fieldName, objectAccessExpression);
     }
     
-//  map<TProjection extends ArrayElementProjection<TElementsUnion>>(projection: TProjection): GroqExpression<readonly ArrayElementProjectionResultType<TProjection>[]>;
-
     map<TProjection extends ArrayElementProjection<Bar<TElementSchemas, TReferenceSchemas>>>(projection: TProjection): GroqExpression<readonly ArrayElementProjectionResultType<TProjection>[]> {
         const arg = new ProjectionAgr<TElementSchemas | TReferenceSchemas>(this.elementSchemas, this.referenceSchemas);
         const projectionResult = projection(arg as any);
         return new MappedArrayExpression<ArrayElementProjectionResultType<TProjection>>(this, projectionResult);
     }
+
+    filter(predicate: ArrayElementPredicate<Bar<TElementSchemas, TReferenceSchemas>>): ObjectArrayAccessExpression<Bar<TElementSchemas, TReferenceSchemas>> {
+        throw new Error("Method not implemented.");
+    }    
 }
 
 class ProjectionAgr<TElementSchemas extends ObjectSchema<any, any>> implements ObjectUnionAccessExpression<GroqObjectFromObjectSchema<TElementSchemas>> {
@@ -76,7 +79,7 @@ class IsObjectTypeExpression<T extends ObjectSchema<any, any>, TProjection exten
     __returnType: (GroqExpressionType<ReturnType<TProjection>> & { _type: T["type"]; }) | undefined;
     constructor(private readonly elements: ObjectUnionAccessExpression<any>, private readonly type: T, private readonly projectionResult: GroqExpressionOrObject) { }
     toGroq(depth?: number, context?: GroqExpressionContext): string {
-        return `_type == '${this.type.type}' => ${toGroq(this.projectionResult, 'array-map')}`
+        return `_type == "${this.type.type}" => ${toGroq(this.projectionResult, 'array-map')}`
     }
 }
 
