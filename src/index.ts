@@ -5,7 +5,7 @@ import { ObjectSchema } from "./ObjectSchema";
 import { ReferenceField } from "./ReferenceField";
 import { SimpleField } from "./SimpleField";
 
-export function fetch<T>(q : GroqExpression<T>) : T {
+export function fetch<T, TParams extends Record<string, any>>(q : GroqExpression<T, TParams>, params: TParams) : T {
     throw Error("Not implemented");    
 }
 

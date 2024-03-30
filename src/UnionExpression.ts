@@ -1,19 +1,19 @@
-import { GroqExpressionOrObject, ConditionalExpression, GroqExpressionType, GroqExpression, GroqExpressionContext } from "./GroqExpression";
-import { toArray, toGroq } from "./utils";
+import { GroqExpressionOrObject, ConditionalExpression, GroqExpressionType, GroqExpression, GroqExpressionContext, ExtractParams } from "./GroqExpression";
+import { UnionToSum, toArray, toGroq } from "./utils";
 
-type UnionToSum<T> = (T extends any ? (k: T) => void : never) extends ((k: infer I) => void) ? I : never
 type IsNever<T, K> = [T] extends [never] ? K : T
 
 type UnionResultType<T extends GroqExpressionOrObject> = 
-    UnionToSum<(T extends ConditionalExpression<any> ? { } : GroqExpressionType<T>)> & 
-    IsNever<T extends ConditionalExpression<any> ? GroqExpressionType<T> : never, {}>
+    UnionToSum<(T extends ConditionalExpression<any, any> ? { } : GroqExpressionType<T>)> & 
+    IsNever<T extends ConditionalExpression<any, any> ? GroqExpressionType<T> : never, {}>
 
-export function union<TArgs extends (GroqExpression<object> | Record<string, GroqExpressionOrObject>)[]>(...args: TArgs): GroqExpression<UnionResultType<TArgs[number]>> {
+export function union<TArgs extends (GroqExpression<object, any> | Record<string, GroqExpressionOrObject>)[]>(...args: TArgs): GroqExpression<UnionResultType<TArgs[number]>, ExtractParams<TArgs[number]>> {
     return new UnionExpression(args);
 }
 
-class UnionExpression<TArgs extends GroqExpressionOrObject[]> implements GroqExpression<UnionResultType<TArgs[number]>> {
+class UnionExpression<TArgs extends GroqExpressionOrObject[]> implements GroqExpression<UnionResultType<TArgs[number]>, ExtractParams<TArgs[number]>> {
     __returnType: UnionResultType<TArgs[number]> | undefined;
+    __params: undefined;
 
     constructor(private readonly args: TArgs) {
     }

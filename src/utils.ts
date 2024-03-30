@@ -1,6 +1,8 @@
 import { GroqExpression, GroqExpressionContext, GroqExpressionOrObject } from "./GroqExpression";
 import { ObjectSchema } from "./ObjectSchema";
 
+export type UnionToSum<T> = (T extends any ? (k: T) => void : never) extends ((k: infer I) => void) ? I : never
+
 export function toObject<T extends Record<string, any>>(arr: [string, any][]) {
     return arr.reduce((acc, [k, v]) => ({ ...acc, [k]: v }), {} as T);
 }
@@ -23,7 +25,7 @@ export function toGroq(a: GroqExpressionOrObject, context?: GroqExpressionContex
     return `{${toArray(a).map(([k, v]) => `"${k}": ${toGroq(v as any, 'projection')}`).join(", ")}}`;
 }
 
-export function isGroqExpression(a: Record<string, any> | GroqExpression<any> | string | number | boolean) : a is Pick<GroqExpression<any>, 'toGroq' | 'isProjection'> {
+export function isGroqExpression(a: Record<string, any> | GroqExpression<any, any> | string | number | boolean) : a is Pick<GroqExpression<any, any>, 'toGroq' | 'isProjection'> {
     if (typeof a === 'string') return false;
     if (typeof a === 'number') return false;
     if (typeof a === 'boolean') return false;

@@ -1,14 +1,14 @@
 import { testType } from "type-plus"
-import { F } from "../src"
+import { F, fetch } from "../src"
 import { query } from "../src/QueryExpression"
 import { union } from "../src/UnionExpression"
 import { upper } from "../src/UpperExpression"
-import { GroqExpression, GroqExpressionType, GroqObjectType, Ref } from "../src/GroqExpression"
+import { ExtractParams, GroqExpression, GroqExpressionType, GroqObjectType, ObjectAccessExpression, Ref } from "../src/GroqExpression"
 import { GroqObjectFromObjectSchema } from "../src/ObjectSchema"
 import { ExpandRecursively } from "./utils"
 import { ObjectArrayField } from "../src/ObjectArrayField"
 import { toGroq } from "../src/utils"
-import { eq, or, and, select } from "../src/BooleanExpressions"
+import { eq, or, and, select, neq, P } from "../src/Functions"
 
 const Category = {
     type: "category" as const,
@@ -73,7 +73,7 @@ export const Article: WithExtraFields<typeof ArticleBase, { relatedArticles: Obj
     fields: { ...ArticleBase.fields, relatedArticles: F.referenceArray([() => Article]) }
 };
 
-type QueryResultType<T extends GroqExpression<any>> = GroqExpressionType<T>[number];
+type QueryResultType<T extends GroqExpression<any, any>> = GroqExpressionType<T>[number];
 
 describe('Basic picks', () => {
 
@@ -126,7 +126,6 @@ describe('Objects', () => {
             linkUrl: a.link.url,
         }));
         testType.equal<QueryResultType<typeof q>, { linkUrl: string }>(true);
-        type FFFFFF = ExpandRecursively<QueryResultType<typeof q>>;
         expect(q.toGroq()).toBe(/* groq */`*[_type == "article"] {"linkUrl": link.url}`)
     })
 
@@ -276,6 +275,7 @@ describe('Functions', () => {
             authorIsEmployee: select(eq(a.author.resolve(a => a._type), "employee"), true),
             authorIsExternal: select(eq(a.author.resolve(a => a._type), "externalContributor"), true, false),
             linkUrl: a.link.url }));
+            type FFFFFF = ExpandRecursively<QueryResultType<typeof q>>;
 
             testType.strictCanAssign<QueryResultType<typeof q>, { authorIsEmployee: boolean | null, authorIsExternal: boolean, linkUrl: string }>(true);
             expect(q.toGroq()).toBe(/* groq */`*[_type == "article"] {"authorIsEmployee": select(author->_type == "employee" => true), "authorIsExternal": select(author->_type == "externalContributor" => true, false), "linkUrl": link.url}`)
@@ -305,11 +305,23 @@ describe('Filters', () => {
 
 });
 
+
+describe('Parameters', () => {
+    test('Parameters can be used in filters', () => {
+        const q = query(Article).filter(a => or(eq(a.title, P.string('title')), neq(a.author._ref, P.string('authorId'))));
+        
+        testType.equal<QueryResultType<typeof q>, GroqObjectType<GroqObjectFromObjectSchema<typeof Article>>>(true);
+        testType.equal<ExtractParams<typeof q>, { title: string, authorId: string }>(true);
+
+        expect(q.toGroq()).toBe(/* groq */`*[_type == "article" && (title == $title || author._ref != $authorId)] { ... }`);
+    })
+});
+
 describe('Sample queries', () => {
 
     test('Query 1', () => {
         const q = query(Article)
-            .filter(a => or(eq(a.title, "foo"), eq(a.title, "bar")))
+            .filter(a => or(eq(a.title, P.string("title1")), eq(a.title, P.string("title2"))))
             .map(a => ({
                 linkUrl: a.link.url,
                 author: a.author.resolve(a => union(
@@ -361,7 +373,7 @@ describe('Sample queries', () => {
         }
 
         testType.strictCanAssign<QueryResultType<typeof q>, ExpectedResultType>(true);
-            
+        testType.equal<ExtractParams<typeof q>, { title1: string, title2: string }>(true);
     });
 });
 
