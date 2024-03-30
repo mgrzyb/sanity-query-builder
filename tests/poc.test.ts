@@ -1,5 +1,5 @@
 import { testType } from "type-plus"
-import { F, fetch } from "../src"
+import { F } from "../src"
 import { query } from "../src/QueryExpression"
 import { union } from "../src/UnionExpression"
 import { upper } from "../src/UpperExpression"
@@ -7,7 +7,6 @@ import { ExtractParams, GroqExpression, GroqExpressionType, GroqObjectType, Obje
 import { GroqObjectFromObjectSchema } from "../src/ObjectSchema"
 import { ExpandRecursively } from "./utils"
 import { ObjectArrayField } from "../src/ObjectArrayField"
-import { toGroq } from "../src/utils"
 import { eq, or, and, select, neq, P } from "../src/Functions"
 
 const Category = {
@@ -57,7 +56,7 @@ const ArticleBase = {
             fields: {
                 label: F.string(),
                 url: F.string(),
-                //target: F.enum({ "BLANK": "_blank", "SELF": "_self" })
+                target: F.enum({ "BLANK": "_blank", "SELF": "_self" })
             }
         }),
         category: F.reference([Category]),
